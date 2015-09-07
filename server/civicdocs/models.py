@@ -1,4 +1,5 @@
 from uuid import uuid4
+import hashlib
 import datetime
 
 from sqlalchemy.sql import func
@@ -127,18 +128,34 @@ class Users(Base, CreationMixin, TimeStampMixin):
     first = Column(UnicodeText, nullable=False)
     last = Column(UnicodeText, nullable=False)
     email = Column(UnicodeText, nullable=False)
-    pass_salt = Column(UnicodeText, nullable=False)
-    pass_hash = Column(UnicodeText, nullable=False)
-    login_datetime = Column(DateTime, nullable=False)
+    pass_salt = Column(UnicodeText, nullable=True)
+    pass_hash = Column(UnicodeText, nullable=True)
+    login_datetime = Column(DateTime, nullable=True)
     
     home_municipality_id = Column(
         UUIDType(binary=False),
         ForeignKey('municipalities.id'),
-        nullable=False,
+        nullable=True,
     )
 
+    scrapers = relationship('Scrapers', backref='owner', lazy='joined')
+
+    @classmethod
+    def add(self, password, **kwargs):
+        user = super(Users, self).add(**kwargs)
+        with transaction.manager:
+            pass_salt = str(uuid4())
+            pass_hash = hashlib.sha256('{0}{1}'.format(
+                password,
+                pass_salt,
+            ).encode('utf-8')).hexdigest()
+            user.pass_salt = pass_salt
+            user.pass_hash = pass_hash
+            transaction.commit()
+        return user
+
     def to_dict(self):
-        resp = super(Municipalities, self).to_dict()
+        resp = super(Users, self).to_dict()
         resp.update(
             first = self.first,
             last = self.last,
@@ -282,6 +299,16 @@ class DocumentTypes(Base, CreationMixin, TimeStampMixin):
         lazy='joined',
     )
 
+    @classmethod
+    def get_by_mine(self, mime_type):
+        with transaction.manager:
+            document_type = DBSession.query(
+                DocumentTypes,
+            ).filter(
+                DocumentTypes.mime_type == mime_type,
+            ).first()
+        return document_type
+
     def to_dict(self):
         resp = super(DocumentTypes, self).to_dict()
         resp.update(
@@ -339,7 +366,7 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText, nullable=False)
     url = Column(UnicodeText, nullable=False)
-    link_level = Column(UnicodeText, nullable=False)
+    link_level = Column(Integer, nullable=False)
     in_process = Column(Boolean, nullable=False)
     start_run_datetime = Column(DateTime)
     last_run_datetime = Column(DateTime)
@@ -351,6 +378,12 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
     )
 
     job_runs = relationship('JobRuns', backref='job', lazy='joined')
+
+    dispatcher = relationship(
+        'Dispatchers',
+        backref='current_job',
+        lazy='joined',
+    )
 
     #document_types = relationship(
     #    'DocumentTypes',
@@ -417,8 +450,20 @@ class Scrapers(Base, CreationMixin, TimeStampMixin):
     owner_id = Column(
         UUIDType(binary=False),
         ForeignKey('users.id'),
-        nullable=False,
+        nullable=True, # TODO: may want to rethink this ...
     )
+    dispatcher = relationship('Dispatchers', backref='scraper', lazy='joined')
+    workers = relationship('Workers', backref='scraper', lazy='joined')
+
+    @classmethod
+    def get_by_token(self, token):
+        with transaction.manager:
+            scraper = DBSession.query(
+                Scrapers,
+            ).filter(
+                Scrapers.token == token,
+            ).first()
+        return scraper
 
     def to_dict(self):
         resp = super(Scrapers, self).to_dict()
@@ -426,13 +471,81 @@ class Scrapers(Base, CreationMixin, TimeStampMixin):
             name = self.name,
             description = self.description,
             token = self.token,
-            owner = self.owner,
+            owner = self.owner.to_dict(),
         )
         return resp
 
 
 Index('index_scrapers_id', Jobs.name, unique=True)
 Index('index_scrapers_name', Jobs.name, unique=True, mysql_length=255)
+
+
+class Workers(Base, CreationMixin, TimeStampMixin):
+
+    __tablename__ = 'workers'
+    scraper_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('scrapers.id'),
+        nullable=False,
+    )
+    dispatcher_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('dispatchers.id'),
+        nullable=False,
+    )
+    last_callin_datetime = Column(DateTime, nullable=False)
+    up_time = Column(Integer, nullable=False)
+
+    #dispatcher = relationship('Dispatchers', backref='worker', lazy='joined')
+
+    def to_dict(self):
+        resp = super(Workers, self).to_dict()
+        resp.update(
+            scraper_id=str(self.scraper_id),
+            dispatcher_id=str(self.dispatcher_id),
+            last_callin_datetime=str(self.last_callin_datetime),
+            up_time=self.up_time,
+        )
+        return resp
+
+class Dispatchers(Base, CreationMixin, TimeStampMixin):
+
+    __tablename__ = 'dispatchers'
+    scraper_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('scrapers.id'),
+        nullable=False,
+    )
+    current_job_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('jobs.id'),
+        nullable=True,
+    )
+    current_job_run_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('job_runs.id'),
+        nullable=True,
+    )
+    last_callin_datetime = Column(DateTime, nullable=False)
+    up_time = Column(Integer, nullable=False)
+    idle = Column(Boolean, nullable=False)
+    workers = relationship('Workers', backref='dispatcher', lazy='joined')
+
+    def to_dict(self):
+        resp = super(Dispatchers, self).to_dict()
+        current_job = None
+        if self.current_job is not None:
+            current_job = self.current_job.to_dict()
+        current_job_run = None
+        if self.current_job_run is not None:
+            current_job_run = self.current_job_run.to_dict()
+        resp.update(
+            scraper=self.scraper.to_dict(),
+            wrokers=[w.to_dict() for w in self.workers],
+            current_job=self.current_job,
+            current_job_run=self.current_job_run,
+        )
+        return resp
 
 
 class JobRuns(Base, CreationMixin, TimeStampMixin):
@@ -443,9 +556,20 @@ class JobRuns(Base, CreationMixin, TimeStampMixin):
         ForeignKey('jobs.id'),
         nullable=False,
     )
-    scraper_id = Column(UnicodeText, nullable=False)
-    status = Column(UnicodeText, nullable=False)
-    finish_datetime = Column(DateTime, nullable=False)
+    scraper_id = Column(
+        UUIDType(binary=False),
+        ForeignKey('scrapers.id'),
+        nullable=False
+    )
+    start_datetime = Column(DateTime, nullable=False)
+    finished = Column(Boolean, nullable=False)
+    finish_datetime = Column(DateTime, nullable=True)
+
+    dispatcher = relationship(
+        'Dispatchers',
+        backref='current_job_run',
+        lazy='joined',
+    )
 
     def to_dict(self):
         resp = super(JobRuns, self).to_dict()
@@ -492,8 +616,9 @@ class Documents(Base, CreationMixin, TimeStampMixin):
 
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText, nullable=False)
-    parent_url = Column(UnicodeText, nullable=False)
-    parent_page_title = Column(UnicodeText, nullable=False)
+    url = Column(UnicodeText, nullable=False)
+    source_url = Column(UnicodeText, nullable=False)
+    source_url_title = Column(UnicodeText, nullable=False)
     link_text = Column(UnicodeText, nullable=False)
 
     document_type_id = Column(
@@ -510,12 +635,12 @@ class Documents(Base, CreationMixin, TimeStampMixin):
     )
 
     def to_dict(self):
-        resp = super(Jobs, self).to_dict()
+        resp = super(Documents, self).to_dict()
         resp.update(
             name = self.name,
             description = self.description,
-            parent_url = self.parent_url,
-            parent_page_title = self.parent_page_title,
+            source_url = self.source_url,
+            source_url_title = self.source_url_title,
             link_text = self.link_text,
             categories = [c.to_dict() for c in self.categories],
         )
@@ -526,14 +651,14 @@ Index('index_documents_id', Documents.id, unique=True)
 Index(
     'index_documents_name',
     Documents.name,
-    unique=True,
-    mysql_length=255,
+    #unique=True,
+    #mysql_length=255,
 )
 Index(
     'index_documents_description',
     Documents.description,
-    unique=True,
-    mysql_length=255,
+    #unique=True,
+    #mysql_length=255,
 )
 
 

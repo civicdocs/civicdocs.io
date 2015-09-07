@@ -1,6 +1,8 @@
 import os
 import sys
+import uuid
 import transaction
+
 
 from sqlalchemy import engine_from_config
 
@@ -13,8 +15,10 @@ from pyramid.scripts.common import parse_vars
 
 from ..models import (
     DBSession,
-    #MyModel,
     Base,
+    DocumentTypes,
+    Users,
+    Scrapers,
     )
 
 
@@ -38,3 +42,24 @@ def main(argv=sys.argv):
     #with transaction.manager:
     #    model = MyModel(name='one', value=1)
     #    DBSession.add(model)
+
+    application_pdf_doc_type = DocumentTypes.add(
+        name="Adobe PDF",
+        description="Adobe PDF file",
+        mime_type="application/pdf",
+    )
+
+    system_owner = Users.add(
+        first = "SYSTEM",
+        last = "USERS",
+        email = "system@localhost",
+        password = "password",
+    )
+
+    default_scraper = Scrapers.add(
+        name="Default Scraper",
+        description="CivicDocs.IO loads with a single, defualt scraper.",
+        token='{0}-{1}'.format(str(uuid.uuid4()), str(uuid.uuid4())),
+        owner_id = system_owner.id,
+    )
+    print("DEFAULT SCRAPER TOKEN:\r\n{0}\r\n".format(default_scraper.token))

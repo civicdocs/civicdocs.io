@@ -20,7 +20,12 @@ def main(global_config, **settings):
 
     #config.add_route('home', '/')
 
+    config.add_route('/dispatchers/announce','/dispatchers/announce')
     config.add_route('/dispatchers/jobs','/dispatchers/jobs')
+    config.add_route('/dispatchers/status/{id}', '/dispatchers/status/{id}')
+
+    config.add_route('/workers/announce', '/workers/announce')
+    config.add_route('/workers/document', '/workers/document')
 
     config.scan()
     return config.make_wsgi_app()
