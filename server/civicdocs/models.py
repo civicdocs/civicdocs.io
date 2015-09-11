@@ -41,6 +41,7 @@ class TimeStampMixin(object):
     creation_datetime = Column(DateTime, server_default=func.now())
     modified_datetime = Column(DateTime, server_default=func.now())
 
+
 class CreationMixin():
 
     id = Column(UUIDType(binary=False), primary_key=True)
@@ -62,7 +63,6 @@ class CreationMixin():
                 cls,
             ).all()
         return things
-
 
     @classmethod
     def get_paged(cls, start=0, count=10):
@@ -131,7 +131,7 @@ class Users(Base, CreationMixin, TimeStampMixin):
     pass_salt = Column(UnicodeText, nullable=True)
     pass_hash = Column(UnicodeText, nullable=True)
     login_datetime = Column(DateTime, nullable=True)
-    
+
     home_municipality_id = Column(
         UUIDType(binary=False),
         ForeignKey('municipalities.id'),
@@ -157,9 +157,9 @@ class Users(Base, CreationMixin, TimeStampMixin):
     def to_dict(self):
         resp = super(Users, self).to_dict()
         resp.update(
-            first = self.first,
-            last = self.last,
-            email = self.email,
+            first=self.first,
+            last=self.last,
+            email=self.email,
         )
         return resp
 
@@ -177,32 +177,25 @@ class Municipalities(Base, CreationMixin, TimeStampMixin):
     entities = relationship(
          "Entities", backref="municipality", lazy="joined"
     )
-    #locations = relationship(
-    #    "Locations", backref="locations", lazy="joined"
-    #)
 
     jobs = relationship("Jobs", backref="municipality", lazy="joined")
 
     def to_dict(self):
         resp = super(Municipalities, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            addresses = [a.to_dict() for a in self.addresses],
-            entities = [o.to_dict() for o in self.entities],
+            name=self.name,
+            description=self.description,
+            addresses=[a.to_dict() for a in self.addresses],
+            entities=[o.to_dict() for o in self.entities],
         )
         return resp
 
 
 Index('index_municipalities_id', Municipalities.id, unique=True)
 Index(
-    'index_municipalities_name', 
+    'index_municipalities_name',
     Municipalities.name,
-    unique=True,
-    mysql_length=255
 )
-#Index('index_municipalities_description', Municipalities.description, unique=True, mysql_length=4096)
-#Index('index_municipalities_url', Municipalities.url, unique=True, mysql_length=255)
 
 
 class Entities(Base, CreationMixin, TimeStampMixin):
@@ -216,15 +209,15 @@ class Entities(Base, CreationMixin, TimeStampMixin):
         nullable=False,
     )
 
-    addresses = relationship("Addresses", backref="entity", lazy="joined");
+    addresses = relationship("Addresses", backref="entity", lazy="joined")
 
     def to_dict(self):
         resp = super(Entities, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            municipality_id = self.municipality_id,
-            addresses = [a.to_dict() for a in self.addresses],
+            name=self.name,
+            description=self.description,
+            municipality_id=self.municipality_id,
+            addresses=[a.to_dict() for a in self.addresses],
         )
         return resp
 
@@ -233,10 +226,7 @@ Index('index_entities_id', Entities.id, unique=True)
 Index(
     'index_entities_name',
     Entities.name,
-    unique=True,
-    mysql_length=255
 )
-#Index('index_entities_description', Entities.description, unique=True, mysql_length=4096)
 
 
 class Addresses(Base, CreationMixin, TimeStampMixin):
@@ -251,7 +241,7 @@ class Addresses(Base, CreationMixin, TimeStampMixin):
     zipcode = Column(UnicodeText, nullable=False)
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
-    
+
     municipality_id = Column(
         UUIDType(binary=False),
         ForeignKey('municipalities.id'),
@@ -266,13 +256,13 @@ class Addresses(Base, CreationMixin, TimeStampMixin):
     def to_dict(self):
         resp = super(Addresses, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            address_0 = self.address_0,
-            address_1 = self.address_1,
-            city = self.city,
-            state = self.state,
-            zipcode = self.zipcode,
+            name=self.name,
+            description=self.description,
+            address_0=self.address_0,
+            address_1=self.address_1,
+            city=self.city,
+            state=self.state,
+            zipcode=self.zipcode,
         )
         return resp
 
@@ -281,8 +271,6 @@ Index('index_addresses_id', Addresses.name, unique=True)
 Index(
     'index_addresses_name',
     Addresses.name,
-    unique=True,
-    mysql_length=255,
 )
 
 
@@ -312,9 +300,9 @@ class DocumentTypes(Base, CreationMixin, TimeStampMixin):
     def to_dict(self):
         resp = super(DocumentTypes, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            mime_type = self.mime_type,
+            name=self.name,
+            description=self.description,
+            mime_type=self.mime_type,
         )
         return resp
 
@@ -323,14 +311,12 @@ Index('index_document_types_id', DocumentTypes.id, unique=True)
 Index(
     'index_document_types_name',
     DocumentTypes.name,
-    unique=True,
-    mysql_length=255,
 )
-    
+
 
 class DocumentTypeAssignments(Base, CreationMixin, TimeStampMixin):
     __tablename__ = 'document_type_assignments'
-    
+
     document_type_id = Column(
         UUIDType(binary=False),
         ForeignKey('document_types.id'),
@@ -385,13 +371,6 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
         lazy='joined',
     )
 
-    #document_types = relationship(
-    #    'DocumentTypes',
-    #    secondary = DocumentTypeAssignments.__table__,
-    #    backref = 'job',
-    #    lazy = 'joined',
-    #)
-
     @classmethod
     def get_job(self):
         '''
@@ -406,9 +385,9 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
                 'in_process': True,
                 'start_run_datetime': datetime.datetime.now(),
             }).where(
-                Jobs.in_process == False,
+                Jobs.in_process is False,
             ).where(
-                Jobs.id == DBSession.query(
+                Jobs.id is DBSession.query(
                     Jobs.id,
                 ).order_by(
                     desc(Jobs.last_run_datetime),
@@ -425,20 +404,20 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
     def to_dict(self):
         resp = super(Jobs, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            url = self.url,
-            link_level = self.link_level,
-            start_run_datetime = str(self.start_run_datetime),
-            in_process = self.in_process,
-            last_run_datetime = str(self.last_run_datetime),
+            name=self.name,
+            description=self.description,
+            url=self.url,
+            link_level=self.link_level,
+            start_run_datetime=str(self.start_run_datetime),
+            in_process=self.in_process,
+            last_run_datetime=str(self.last_run_datetime),
         )
         return resp
 
 
 Index('index_jobs_id', Jobs.id, unique=True)
-Index('index_jobs_name', Jobs.name, unique=True, mysql_length=255)
-Index('index_jobs_url', Jobs.name, unique=True, mysql_length=1024)
+Index('index_jobs_name', Jobs.name)
+Index('index_jobs_url', Jobs.name)
 
 
 class Scrapers(Base, CreationMixin, TimeStampMixin):
@@ -446,11 +425,10 @@ class Scrapers(Base, CreationMixin, TimeStampMixin):
 
     name = Column(UnicodeText, nullable=False)
     description = Column(UnicodeText, nullable=False)
-    token = Column(UnicodeText, nullable=False)
     owner_id = Column(
         UUIDType(binary=False),
         ForeignKey('users.id'),
-        nullable=True, # TODO: may want to rethink this ...
+        nullable=True,  # TODO: may want to rethink this ...
     )
     dispatcher = relationship('Dispatchers', backref='scraper', lazy='joined')
     workers = relationship('Workers', backref='scraper', lazy='joined')
@@ -463,21 +441,21 @@ class Scrapers(Base, CreationMixin, TimeStampMixin):
             ).filter(
                 Scrapers.token == token,
             ).first()
+            transaction.commit()
         return scraper
 
     def to_dict(self):
         resp = super(Scrapers, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            token = self.token,
-            owner = self.owner.to_dict(),
+            name=self.name,
+            description=self.description,
+            owner=self.owner.to_dict(),
         )
         return resp
 
 
 Index('index_scrapers_id', Jobs.name, unique=True)
-Index('index_scrapers_name', Jobs.name, unique=True, mysql_length=255)
+Index('index_scrapers_name', Jobs.name)
 
 
 class Workers(Base, CreationMixin, TimeStampMixin):
@@ -493,10 +471,10 @@ class Workers(Base, CreationMixin, TimeStampMixin):
         ForeignKey('dispatchers.id'),
         nullable=False,
     )
-    last_callin_datetime = Column(DateTime, nullable=False)
+    last_callin_datetime = Column(DateTime, nullable=True)
     up_time = Column(Integer, nullable=False)
-
-    #dispatcher = relationship('Dispatchers', backref='worker', lazy='joined')
+    document_count = Column(Integer, nullable=False)
+    bandwidth = Column(Integer, nullable=False)
 
     def to_dict(self):
         resp = super(Workers, self).to_dict()
@@ -505,8 +483,11 @@ class Workers(Base, CreationMixin, TimeStampMixin):
             dispatcher_id=str(self.dispatcher_id),
             last_callin_datetime=str(self.last_callin_datetime),
             up_time=self.up_time,
+            document_count=self.document_count,
+            bandwidth=self.bandwidth,
         )
         return resp
+
 
 class Dispatchers(Base, CreationMixin, TimeStampMixin):
 
@@ -521,29 +502,38 @@ class Dispatchers(Base, CreationMixin, TimeStampMixin):
         ForeignKey('jobs.id'),
         nullable=True,
     )
-    current_job_run_id = Column(
-        UUIDType(binary=False),
-        ForeignKey('job_runs.id'),
-        nullable=True,
-    )
-    last_callin_datetime = Column(DateTime, nullable=False)
+    last_callin_datetime = Column(DateTime, nullable=True)
     up_time = Column(Integer, nullable=False)
     idle = Column(Boolean, nullable=False)
+    dispatch_count = Column(Integer, nullable=False)
     workers = relationship('Workers', backref='dispatcher', lazy='joined')
+
+    @classmethod
+    def update_status(self, dispatcher_id, last_callin_datetime,
+                      up_time, idle=True):
+        with transaction.manager:
+            dispatcher = DBSession.query(
+                Dispatchers,
+            ).filter(
+                Dispatchers.id == dispatcher_id,
+            ).first()
+            if dispatcher is not None:
+                dispatcher.last_callin_datetime = last_callin_datetime
+                dispatcher.up_time = up_time
+                dispatcher.idle = idle
+                transaction.commit()
+        return dispatcher
 
     def to_dict(self):
         resp = super(Dispatchers, self).to_dict()
         current_job = None
-        if self.current_job is not None:
+        if self.current_job:
             current_job = self.current_job.to_dict()
         current_job_run = None
-        if self.current_job_run is not None:
-            current_job_run = self.current_job_run.to_dict()
         resp.update(
             scraper=self.scraper.to_dict(),
             wrokers=[w.to_dict() for w in self.workers],
-            current_job=self.current_job,
-            current_job_run=self.current_job_run,
+            current_job=current_job,
         )
         return resp
 
@@ -565,22 +555,16 @@ class JobRuns(Base, CreationMixin, TimeStampMixin):
     finished = Column(Boolean, nullable=False)
     finish_datetime = Column(DateTime, nullable=True)
 
-    dispatcher = relationship(
-        'Dispatchers',
-        backref='current_job_run',
-        lazy='joined',
-    )
-
     def to_dict(self):
         resp = super(JobRuns, self).to_dict()
         resp.update(
-            job = self.job.to_dict(),
-            scraper = self.scraper.to_dict(),
-            status = self.status,
-            finish_datetime = str(self.finish_datetime),
+            job=self.job.to_dict(),
+            scraper=self.scraper.to_dict(),
+            status=self.status,
+            finish_datetime=str(self.finish_datetime),
         )
         return resp
-            
+
 
 class DocumentCategoryAssignments(Base, CreationMixin, TimeStampMixin):
     __tablename__ = 'document_category_assignments'
@@ -620,29 +604,30 @@ class Documents(Base, CreationMixin, TimeStampMixin):
     source_url = Column(UnicodeText, nullable=False)
     source_url_title = Column(UnicodeText, nullable=False)
     link_text = Column(UnicodeText, nullable=False)
+    doc_type = Column(UnicodeText, nullable=False)
 
     document_type_id = Column(
         UUIDType(binary=False),
         ForeignKey('document_types.id'),
-        nullable=False,
+        nullable=True,
     )
 
     categories = relationship(
         'DocumentCategories',
-        secondary = DocumentCategoryAssignments.__table__,
-        backref = 'document',
-        lazy = 'joined',
+        secondary=DocumentCategoryAssignments.__table__,
+        backref='document',
+        lazy='joined',
     )
 
     def to_dict(self):
         resp = super(Documents, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
-            source_url = self.source_url,
-            source_url_title = self.source_url_title,
-            link_text = self.link_text,
-            categories = [c.to_dict() for c in self.categories],
+            name=self.name,
+            description=self.description,
+            source_url=self.source_url,
+            source_url_title=self.source_url_title,
+            link_text=self.link_text,
+            categories=[c.to_dict() for c in self.categories],
         )
         return resp
 
@@ -651,14 +636,10 @@ Index('index_documents_id', Documents.id, unique=True)
 Index(
     'index_documents_name',
     Documents.name,
-    #unique=True,
-    #mysql_length=255,
 )
 Index(
     'index_documents_description',
     Documents.description,
-    #unique=True,
-    #mysql_length=255,
 )
 
 
@@ -671,8 +652,8 @@ class DocumentCategories(Base, CreationMixin, TimeStampMixin):
     def to_dict(self):
         resp = super(Jobs, self).to_dict()
         resp.update(
-            name = self.name,
-            description = self.description,
+            name=self.name,
+            description=self.description,
         )
         return resp
 
@@ -681,16 +662,12 @@ Index('index_document_categories_id', DocumentCategories.id, unique=True)
 Index(
     'index_document_categories_name',
     DocumentCategories.name,
-    unique=True,
-    mysql_length=255,
 )
 
-    
+
 class DocumentAudits(Base, CreationMixin, TimeStampMixin):
     __tablename__ = 'document_audits'
 
-    
+
 class DocumentChangeAudits(Base, CreationMixin, TimeStampMixin):
     __tablename__ = 'document_change_audits'
-
-
