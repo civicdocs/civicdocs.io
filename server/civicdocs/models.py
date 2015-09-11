@@ -385,9 +385,9 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
                 'in_process': True,
                 'start_run_datetime': datetime.datetime.now(),
             }).where(
-                Jobs.in_process is False,
+                Jobs.in_process == False,
             ).where(
-                Jobs.id is DBSession.query(
+                Jobs.id == DBSession.query(
                     Jobs.id,
                 ).order_by(
                     desc(Jobs.last_run_datetime),
@@ -396,6 +396,7 @@ class Jobs(Base, CreationMixin, TimeStampMixin):
             result = DBSession.execute(q)
             job = None
             for row in result:
+                print('Row ID: {0}'.format(row.id))
                 job = Jobs.get_by_id(row.id)
                 break
             transaction.commit()

@@ -170,9 +170,11 @@ def view_dispatchers_get(request):
 @view_config(request_method='GET', route_name='/dispatchers/{id}/jobs',
              renderer='json')
 def view_dispatcher_jobs_get(request):
+    print('/dispatchers/{id}/jobs')
     dispatcher = Dispatchers.get_by_id(request.matchdict['id'])
     if dispatcher:
         _job = Jobs.get_job()
+        print(_job)
         if _job:
             resp = dict(job=_job.to_dict())
         else:
